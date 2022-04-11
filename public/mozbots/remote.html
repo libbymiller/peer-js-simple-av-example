@@ -1,0 +1,167 @@
+<html>
+<script src="../peerjs.js"></script>
+
+<body>
+<div id="menu">
+  <p>Your ID:</p>
+  <p id="uuid"></p>
+  <p>Status</p>
+  <p id="status"></p>
+  <input type="text" id="peerid" value="" />
+  <button onclick="callUser()">Connect</button>
+  <input type="text" id="command" value="hello" />
+  <button onclick="sendData()">Send data</button>
+  <button onclick="endCall()">Close call</button>
+
+</div>
+
+<div>
+   <span id="mute">🔇</span>
+</div>
+
+<div id="av"></div>
+<div id="data"></div>
+
+</body>
+
+<script>
+
+var peer = new Peer({key: 'peerjs', host: 'mozbot1.example.com', path: "/",debug:3, port: 443, secure: true});
+
+let bot_id = "mozbot1";
+document.querySelector("#peerid").setAttribute("value",bot_id);
+
+var conn_for_later;
+var call;
+let local_stream = null;
+
+
+peer.on('connection', function(conn) { 
+   console.log("connection");
+   conn.on('close', function() {
+     console.log('closed remote',conn);
+   });
+});
+
+const sendData = () => {
+   const command = document.querySelector("#command").value;
+   console.log("sending command",command);
+   conn_for_later.send(command);
+}
+
+
+//mostly from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
+
+peer.on("open", function (id) {
+   console.log('My peer ID is: ' + id);
+   document.getElementById("uuid").textContent = id;
+   document.getElementById("status").textContent = "connected";
+});
+
+
+function endCall(){
+   if(call!=null){
+     call.close();//this doesn't do anything
+   }
+   console.log("closing call");
+   conn_for_later.close();
+   let remoteElement = document.querySelector("#"+bot_id);
+   remoteElement.parentNode.removeChild(remoteElement);
+}
+
+async function callUser() {
+  
+  // get the id entered by the user
+  document.getElementById("status").textContent = "getting user media, audio only";
+  const peerId = document.querySelector("#peerid").value;
+
+// connect to data
+  conn_for_later = peer.connect(peerId);
+  conn_for_later.on('data', function(data) {
+     console.log('Received', data);
+     document.querySelector("#data").innerHTML = data;
+  });
+
+  //get the mic only
+  local_stream = await navigator.mediaDevices.getUserMedia({
+    video: false,
+    audio: true,
+  });
+
+  // make the call
+  // https://github.com/peers/peerjs/issues/147#issuecomment-647498880
+        var options = {
+          'constraints': {
+//            'mandatory': {
+  //            'OfferToReceiveAudio': true,
+    //          'OfferToReceiveVideo': true
+      //      },
+            offerToReceiveAudio: 1,
+            offerToReceiveVideo: 1,
+          }
+        }
+
+  console.log("stream",local_stream.getTracks());
+
+//pre-emptively mute my stream
+  local_stream.getTracks()[0].enabled = false;
+
+  console.log("stream (muted)",local_stream.getTracks());
+
+  call = peer.call(peerId, local_stream, options);
+
+
+  let media_ids = [];
+
+  call.on("stream", (remoteStream) => {
+   try{
+    document.getElementById("status").textContent = "got remote stream";
+    console.log("got remote stream, creating video",remoteStream.getTracks())
+
+    // when we receive the remote stream, video and audio, play it
+    // getting dupes!
+    //shoudl do this better
+    let the_id = remoteStream.getTracks()[0].id;
+    if(media_ids.includes(the_id)){
+      console.log("got media id ",the_id);
+    }else{  
+      const video = document.createElement('video');
+      video.controls = 'true';
+      video.id = bot_id;
+      document.getElementById("av").appendChild(video);
+      video.srcObject = remoteStream;
+      video.play();
+      media_ids.push(the_id);
+    }
+
+   }catch(e){
+     console.error(e);
+   }
+  });
+  call.on("error", (err) => {
+    document.getElementById("status").textContent = "error "+err;
+    console.log("ERROR",err);
+  });
+  call.on('close', () => {
+    document.getElementById("status").textContent = "ending call";
+  })
+}
+
+
+//mute / unmute
+document.querySelector('#mute').onclick = function() {
+  if (this.innerHTML == '🔇') {
+      this.innerHTML = '🔉';
+      console.log("unmuting!");
+
+      local_stream.getTracks()[0].enabled = true;
+
+   }else {
+      this.innerHTML = '🔇';
+      console.log("muting!");
+      local_stream.getTracks()[0].enabled = false;
+   }
+};
+
+</script>
+</html>
