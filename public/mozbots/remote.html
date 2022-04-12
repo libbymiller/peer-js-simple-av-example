@@ -90,6 +90,11 @@ peer.on("open", function (id) {
    setStatus("Data connection open");
 });
 
+peer.on('error', function(err) { 
+   console.log('Error ' + err);
+   setStatus(err);   
+});
+
 
 function endCall(){
    if(call!=null){
@@ -102,7 +107,7 @@ function endCall(){
 }
 
 async function callUser() {
-  
+
   // get the id entered by the user
   document.getElementById("status").textContent = "getting user media, audio only";
   setStatus("Requesting user audio");
@@ -168,12 +173,12 @@ async function callUser() {
     }
 
    }catch(e){
-     console.error(e);
+     console.error("oops",e);
    }
   });
   call.on("error", (err) => {
     setStatus("Error "+err);
-    console.log("ERROR",err);
+    console.log("ERRORRR",err);
   });
   call.on('close', () => {
     setStatus("Ending call to "+bot_id);
