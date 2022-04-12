@@ -1,6 +1,25 @@
 <html>
 <script src="../peerjs.js"></script>
 
+<style type="text/css">
+.composition {
+  display: inline-block;
+  padding: 0;
+  margin: 0.5em 0.1em 0 0.1em;
+  font-size: 8em;
+  position: relative;
+  line-height: 1;
+}
+.off::after {
+  content: '❌';
+  position: absolute;
+  font-size: 0.8em;
+  top: 10%;
+  left: 10%;
+  opacity: 0.9;
+}
+</style>
+
 <body>
 <div id="menu">
   <p>Your ID:</p>
@@ -16,7 +35,7 @@
 </div>
 
 <div>
-   <span id="mute">🔇</span>
+   <span id="mute"  class="composition microphone off">🎤</span>
 </div>
 
 <div id="av"></div>
@@ -26,7 +45,7 @@
 
 <script>
 
-var peer = new Peer({key: 'peerjs', host: 'mozbot1.example.com', path: "/",debug:3, port: 443, secure: true});
+var peer = new Peer({key: 'peerjs', host: 'mozbot1.nicecupoftea.org', path: "/",debug:3, port: 443, secure: true});
 
 let bot_id = "mozbot1";
 document.querySelector("#peerid").setAttribute("value",bot_id);
@@ -150,17 +169,15 @@ async function callUser() {
 
 //mute / unmute
 document.querySelector('#mute').onclick = function() {
-  if (this.innerHTML == '🔇') {
-      this.innerHTML = '🔉';
-      console.log("unmuting!");
-
-      local_stream.getTracks()[0].enabled = true;
-
-   }else {
-      this.innerHTML = '🔇';
-      console.log("muting!");
-      local_stream.getTracks()[0].enabled = false;
-   }
+  if(this.classList.contains("off")){
+     this.classList.remove("off");
+     console.log("unmuting!");
+     local_stream.getTracks()[0].enabled = true;
+  }else{
+     this.classList.add("off");
+     console.log("muting!");
+     local_stream.getTracks()[0].enabled = false;
+  }
 };
 
 </script>
