@@ -19,6 +19,10 @@
 
 <script>
 
+//for talking to the pi's websockets
+const url = "ws://localhost:80";
+let move_socket = new WebSocket(url);
+
 var myname = window.location.hash.substr(1);
 if( myname == ""){
   console.error("no name chosen, so random name picked. Use #name.");
@@ -40,12 +44,12 @@ function handlePeerDisconnect(peerId) {
           console.log(`closing remote ${conn.connectionId} peerConnection (${index + 1}/${array.length})`, conn.peerConnection);
           conn.peerConnection.close();
 
-      // close it using peerjs methods
+          // close it using peerjs methods
           if (conn.close){
            conn.close();
           }
         }else{
-          console.log("no maatch with selected peer, not closing");
+          console.log("no match with selected peer, not closing");
         }
 
     });
@@ -56,8 +60,9 @@ peer.on('connection', function(conn) {
    console.log("connection");
    conn_for_later = conn;
    conn.on('data', function(data) {
-     console.log('Received', data);
+     console.log('Received and sending', data);
      document.querySelector("#data").innerHTML = data;
+     move_socket.send(data);
    });
    conn.on('disconnected', function() {
      console.log('disconnected');
@@ -85,8 +90,6 @@ peer.on("open", function (id) {
 peer.on("disconnected", function (id) {
    document.getElementById("status").textContent = "disconnected";
 });
-
-let mediaStreamIds = [];
 
 
 peer.on("call", (call) => {
@@ -124,7 +127,7 @@ peer.on("call", (call) => {
           console.log("ERROR",err);
         });
 
-        //these two never fire. Have to use connection instead
+        //these two never fire. Have to use data connection instead (see above)
         //https://stackoverflow.com/questions/64651890/peerjs-close-video-call-not-firing-close-event
         call.on("close", function() { 
           console.log("call closed",call);
@@ -140,6 +143,36 @@ peer.on("call", (call) => {
         console.log("Failed to get local stream:", err);
       });
 });
+
+// a websocket server running on the pi
+// for sending lights and movement messages
+
+move_socket.onopen = function(e) {
+  console.log("[open] Connection established");
+  console.log("Sending to server");
+  move_socket.send("arrived");
+};
+
+move_socket.onmessage = function(event) {
+  console.log(`[message] Data received from server: ${event.data}`);
+};
+
+move_socket.onclose = function(event) {
+  if (event.wasClean) {
+    console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+  } else {
+    // e.g. server process killed or network down
+    // event.code is usually 1006 in this case
+    console.log('[close] Connection died - reconnecting');
+  }
+  move_socket = new WebSocket(url);
+};
+
+
+move_socket.onerror = function(error) {
+  console.log(`[error] ${error.message}`);
+};
+
 
 
 </script>
