@@ -19,8 +19,11 @@
 
 <script>
 
-var myname = "mozbot1";
-var peer = new Peer([myname],{key: 'peerjs', host: 'mozbot1.example.com', path: "/",debug:3, port: 443, secure: true});
+var myname = window.location.hash.substr(1);
+if( myname == ""){
+  console.error("no name chosen, so random name picked. Use #name.");
+}
+var peer = new Peer([myname],{key: 'peerjs', host: 'mozbot1.nicecupoftea.org', path: "/",debug:3, port: 443, secure: true});
 var conn_for_later;
 
 function handlePeerDisconnect(peerId) {

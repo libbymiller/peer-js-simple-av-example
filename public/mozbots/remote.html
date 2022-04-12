@@ -47,7 +47,11 @@
 
 var peer = new Peer({key: 'peerjs', host: 'mozbot1.nicecupoftea.org', path: "/",debug:3, port: 443, secure: true});
 
-let bot_id = "mozbot1";
+var bot_id = window.location.hash.substr(1);
+if( bot_id == ""){
+  console.error("no bot_id chosen, so no connection will be possible. Use #name.");
+}
+
 document.querySelector("#peerid").setAttribute("value",bot_id);
 
 var conn_for_later;
