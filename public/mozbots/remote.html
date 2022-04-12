@@ -2,13 +2,14 @@
 <script src="../peerjs.js"></script>
 
 <style type="text/css">
-.composition {
+.emoji {
   display: inline-block;
   padding: 0;
   margin: 0.5em 0.1em 0 0.1em;
   font-size: 8em;
   position: relative;
   line-height: 1;
+  cursor: pointer;
 }
 .off::after {
   content: '❌';
@@ -18,24 +19,31 @@
   left: 10%;
   opacity: 0.9;
 }
+#menu {
+  display: inline-block;
+  padding: 0;
+  margin: 0.5em 0.1em 0 0.1em;
+  font-size: 6em;
+  position: relative;
+  line-height: 1;
+}
+
 </style>
 
 <body>
 <div id="menu">
-  <p>Your ID:</p>
-  <p id="uuid"></p>
-  <p>Status</p>
-  <p id="status"></p>
-  <input type="text" id="peerid" value="" />
-  <button onclick="callUser()">Connect</button>
-  <input type="text" id="command" value="hello" />
-  <button onclick="sendData()">Send data</button>
-  <button onclick="endCall()">Close call</button>
-
+  <span>Status: </span>
+  <span id="status"></span>
 </div>
 
 <div>
-   <span id="mute"  class="composition microphone off">🎤</span>
+   <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
+   <span title="start call"  class="emoji" onclick="callUser()">🔛</span>
+   <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
+   <span title="move bot camera up"  class="emoji" onclick="sendData('up_a_bit'); setStatus('Requesting bot camera up');">⬆️</span>
+   <span title="move bot camera down"  class="emoji" onclick="sendData('down_a_bit'); setStatus('Requesting bot camera down');">⬇️</span>
+   <span title="move bot camera left"  class="emoji" onclick="sendData('left_a_bit'); setStatus('Requesting bot camera left');">⬅️</span>
+   <span title="move bot camera right"  class="emoji" onclick="sendData('right_a_bit'); setStatus('Requesting bot camera right');">➡️</span>
 </div>
 
 <div id="av"></div>
@@ -52,7 +60,10 @@ if( bot_id == ""){
   console.error("no bot_id chosen, so no connection will be possible. Use #name.");
 }
 
-document.querySelector("#peerid").setAttribute("value",bot_id);
+function setStatus(text){
+   document.getElementById("status").textContent = text;
+}
+
 
 var conn_for_later;
 var call;
@@ -66,8 +77,7 @@ peer.on('connection', function(conn) {
    });
 });
 
-const sendData = () => {
-   const command = document.querySelector("#command").value;
+const sendData = (command) => {
    console.log("sending command",command);
    conn_for_later.send(command);
 }
@@ -77,8 +87,7 @@ const sendData = () => {
 
 peer.on("open", function (id) {
    console.log('My peer ID is: ' + id);
-   document.getElementById("uuid").textContent = id;
-   document.getElementById("status").textContent = "connected";
+   setStatus("Data connection open");
 });
 
 
@@ -96,7 +105,8 @@ async function callUser() {
   
   // get the id entered by the user
   document.getElementById("status").textContent = "getting user media, audio only";
-  const peerId = document.querySelector("#peerid").value;
+  setStatus("Requesting user audio");
+  const peerId = bot_id;
 
 // connect to data
   conn_for_later = peer.connect(peerId);
@@ -132,13 +142,13 @@ async function callUser() {
   console.log("stream (muted)",local_stream.getTracks());
 
   call = peer.call(peerId, local_stream, options);
-
+  setStatus("Calling "+bot_id+" my stream is muted");
 
   let media_ids = [];
 
   call.on("stream", (remoteStream) => {
    try{
-    document.getElementById("status").textContent = "got remote stream";
+    setStatus("Got remote video");
     console.log("got remote stream, creating video",remoteStream.getTracks())
 
     // when we receive the remote stream, video and audio, play it
@@ -162,27 +172,70 @@ async function callUser() {
    }
   });
   call.on("error", (err) => {
-    document.getElementById("status").textContent = "error "+err;
+    setStatus("Error "+err);
     console.log("ERROR",err);
   });
   call.on('close', () => {
-    document.getElementById("status").textContent = "ending call";
+    setStatus("Ending call to "+bot_id);
   })
 }
 
 
-//mute / unmute
+//mute / unmute my mic
 document.querySelector('#mute').onclick = function() {
   if(this.classList.contains("off")){
      this.classList.remove("off");
+     setStatus("Unmuting myself");
      console.log("unmuting!");
      local_stream.getTracks()[0].enabled = true;
   }else{
      this.classList.add("off");
+     setStatus("Muting myself");
      console.log("muting!");
      local_stream.getTracks()[0].enabled = false;
   }
 };
+
+
+//keycodes for cntrolling
+document.onkeydown = checkKey;
+
+function checkKey(e) {
+  e = e || window.event;
+  console.log(e.keyCode);
+  if(e.keyCode == '38' || e.keyCode == '40' || e.keyCode == '37' || e.keyCode == '39'){
+    console.log("prevent default");
+    e.preventDefault();
+  }
+
+  switch (e.keyCode) {
+    case 38:
+      console.log("up",e.keyCode);
+      // up arrow
+      sendData("up_a_bit");
+      setStatus("Requesting bot camera up");
+      break;
+    case 40:
+      console.log("down",e.keyCode);
+      // down arrow
+      sendData("down_a_bit");
+      setStatus("Requesting bot camera down");
+      break;
+    case 37:
+      // left arrow
+      console.log("left",e.keyCode);
+      sendData("left_a_bit");
+      setStatus("Requesting bot camera left");
+      break;
+    case 39:
+      console.log("right",e.keyCode);
+      // right arrow
+      sendData("right_a_bit");
+      setStatus("Requesting bot camera right");
+      break;
+  }
+}
+
 
 </script>
 </html>
