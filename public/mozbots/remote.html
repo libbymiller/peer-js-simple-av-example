@@ -6,7 +6,7 @@
   display: inline-block;
   padding: 0;
   margin: 0.5em 0.1em 0 0.1em;
-  font-size: 8em;
+  font-size: 2em;
   position: relative;
   line-height: 1;
   cursor: pointer;
@@ -23,20 +23,40 @@
   display: inline-block;
   padding: 0;
   margin: 0.5em 0.1em 0 0.1em;
-  font-size: 6em;
+  font-size: 2em;
   position: relative;
   line-height: 1;
+}
+video {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.content {
+  position: fixed;
+  z-index: 10; 
+  top: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.3);
+  color: #f1f1f1;
+  width: 100%;
+  padding: 20px;
 }
 
 </style>
 
 <body>
-<div id="menu">
+<div class ="content">
+ <div id o
+="menu">
   <span>Status: </span>
   <span id="status"></span>
-</div>
+ </div>
 
-<div>
+ <div>
    <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
    <span title="start call"  class="emoji" onclick="callUser()">🔛</span>
    <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
@@ -44,6 +64,7 @@
    <span title="move bot camera down"  class="emoji" onclick="sendData('down_a_bit'); setStatus('Requesting bot camera down');">⬇️</span>
    <span title="move bot camera left"  class="emoji" onclick="sendData('left_a_bit'); setStatus('Requesting bot camera left');">⬅️</span>
    <span title="move bot camera right"  class="emoji" onclick="sendData('right_a_bit'); setStatus('Requesting bot camera right');">➡️</span>
+ </div>
 </div>
 
 <div id="av"></div>
@@ -165,6 +186,8 @@ async function callUser() {
     }else{  
       const video = document.createElement('video');
       video.controls = 'true';
+      video.autoplay = 'true';
+      video.playsinline = 'rue';
       video.id = bot_id;
       document.getElementById("av").appendChild(video);
       video.srcObject = remoteStream;
