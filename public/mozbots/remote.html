@@ -1,4 +1,6 @@
 <html>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="../peerjs.js"></script>
 
 <style type="text/css">
@@ -27,6 +29,7 @@
   position: relative;
   line-height: 1;
 }
+
 video {
   position: fixed;
   right: 0;
@@ -50,16 +53,17 @@ video {
 
 <body>
 <div class ="content">
- <div id o
-="menu">
+ <div id ="menu">
   <span>Status: </span>
   <span id="status"></span>
  </div>
 
  <div>
    <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
+   <span>&nbsp;&nbsp;</span>
    <span title="start call"  class="emoji" onclick="callUser()">🔛</span>
    <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
+   <span>&nbsp;&nbsp;</span>
    <span title="move bot camera up"  class="emoji" onclick="sendData('up_a_bit'); setStatus('Requesting bot camera up');">⬆️</span>
    <span title="move bot camera down"  class="emoji" onclick="sendData('down_a_bit'); setStatus('Requesting bot camera down');">⬇️</span>
    <span title="move bot camera left"  class="emoji" onclick="sendData('left_a_bit'); setStatus('Requesting bot camera left');">⬅️</span>
@@ -108,7 +112,7 @@ const sendData = (command) => {
 
 peer.on("open", function (id) {
    console.log('My peer ID is: ' + id);
-   setStatus("Data connection open");
+   setStatus("Data connection open, click 'on' to access audio / video");
 });
 
 peer.on('error', function(err) { 
@@ -168,13 +172,13 @@ async function callUser() {
   console.log("stream (muted)",local_stream.getTracks());
 
   call = peer.call(peerId, local_stream, options);
-  setStatus("Calling "+bot_id+" my stream is muted");
+  setStatus("Calling "+bot_id+". My stream is muted");
 
   let media_ids = [];
 
   call.on("stream", (remoteStream) => {
    try{
-    setStatus("Got remote video");
+    setStatus("Got remote video and audio");
     console.log("got remote stream, creating video",remoteStream.getTracks())
 
     // when we receive the remote stream, video and audio, play it
@@ -187,7 +191,7 @@ async function callUser() {
       const video = document.createElement('video');
       video.controls = 'true';
       video.autoplay = 'true';
-      video.playsinline = 'rue';
+      video.setAttribute("playsinline",'true');
       video.id = bot_id;
       document.getElementById("av").appendChild(video);
       video.srcObject = remoteStream;
@@ -204,7 +208,7 @@ async function callUser() {
     console.log("ERRORRR",err);
   });
   call.on('close', () => {
-    setStatus("Ending call to "+bot_id);
+    setStatus("Ended call to "+bot_id);
   })
 }
 

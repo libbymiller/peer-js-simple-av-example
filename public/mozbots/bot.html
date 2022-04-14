@@ -101,7 +101,7 @@ peer.on("call", (call) => {
       .then((stream) => {
 
         // answer the call
-        document.getElementById("status").textContent = "answring call";
+        document.getElementById("status").textContent = "answering call";
         console.log("stream",stream.getTracks());
         call.answer(stream);
 
@@ -120,6 +120,8 @@ peer.on("call", (call) => {
           document.getElementById("av").appendChild(audio);
           audio.srcObject = remoteStream;
           audio.play();
+          console.log("arrived - sending to server");
+          move_socket.send("arrived");
         });
 
         call.on("error", (err) => {
@@ -149,8 +151,6 @@ peer.on("call", (call) => {
 
 move_socket.onopen = function(e) {
   console.log("[open] Connection established");
-  console.log("Sending to server");
-  move_socket.send("arrived");
 };
 
 move_socket.onmessage = function(event) {
