@@ -25,8 +25,11 @@ sudo apt install python3-certbot-apache
 
 # open server ports
 
-    tcp:554, 1935, 8080-8084, 8443-8445, 8888, 9091, 30000-33000
-    udp:1935, 30000-33000
+https: tcp: 443 
+
+webrtc tcp: 554, 1935, 8080-8084, 8443-8445, 8888, 9091, 30000-33000
+
+webrtc udp: 1935, 30000-33000
 
 # get the cert  
 
