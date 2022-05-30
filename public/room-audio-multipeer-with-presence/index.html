@@ -1,0 +1,89 @@
+<html>
+<script src="../peerjs.js"></script>
+
+<body>
+<div id="status">
+</div>
+<div id="data">
+</div>
+</body>
+
+<script>
+
+
+document.querySelector("#status").innerHTML = "No data yet as of "+new Date();
+
+const myname = "index";
+var peer = new Peer([myname],{key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+
+let connected_things = {};
+
+peer.on('connection', function(conn) {
+
+  conn.on('disconnected', function() {
+     console.log('disconnected');
+  });
+  conn.on('close', function() {
+     console.log('closed remote data',conn);
+  });
+
+  conn.on('data', function(data) {
+     console.log('got index data', data);
+     if(data.ping){
+         document.querySelector("#status").innerHTML = "found something";
+         let el = document.querySelector("#id_"+data.ping);
+         if(!el){
+           el = document.createElement("p");
+           el.setAttribute("id","id_"+data.ping)
+           document.querySelector("#data").appendChild(el);
+         }
+         let ls = new Date();
+         let s = data.size;
+         if(!s){
+           s = 0;
+         }
+         el.innerHTML = data.ping+" is available - last seen " +ls + " - "+s + " connected. Connect to <a href='audio.html#"+data.ping+"' target='_blank'>"+data.ping+"</a>";
+         connected_things[data.ping] = ls;
+     }
+
+  });
+
+});
+
+
+peer.on("disconnected", function (id) {
+   console.log("disconnected peer",id);
+   peer.reconnect();
+});
+
+
+// check that everything is still around
+// could do this better probably
+
+const interval = 30000;
+
+setInterval(function () {
+
+  for (let pid in connected_things) {
+    if (connected_things.hasOwnProperty(pid)) {
+       let ls = connected_things[pid];
+       if(new Date() - new Date(ls) > interval ){
+         console.log("connection lost for "+pid);
+         let el = document.querySelector("#id_"+pid);
+         if(!el){
+           el = document.createElement("p");
+           el.setAttribute("id","id_"+pid)
+           document.querySelector("#data").appendChild(el);
+         }
+         el.innerHTML = pid+" is lost - last seen " +ls;
+         delete connected_things.pid;
+       }else{
+//         console.log(pid+" ok ",new Date - new Date(ls))
+       }
+    }
+  }
+
+}, interval);
+
+</script>
+</html>

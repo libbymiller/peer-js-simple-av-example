@@ -1,0 +1,340 @@
+<html>
+<style type="text/css">
+.emoji {
+  display: inline-block;
+  padding: 0;
+  margin: 0.5em 0.1em 0 0.1em;
+  font-size: 2em;
+  position: relative;
+  line-height: 1;
+  cursor: pointer;
+}
+.off::after {
+  content: '❌';
+  position: absolute;
+  font-size: 0.8em;
+  top: 10%;
+  left: 10%;
+  opacity: 0.9;
+}
+</style>
+<script src="../peerjs.js"></script>
+
+<body>
+<div class ="content">
+ <div id ="menu">
+  <span>Status: </span>
+  <span id="status"></span>
+  <br />
+  <span>id is </span>
+  <span id="myid"></span>
+  <br />
+  <span>participants - </span>
+  <span id="numpeers"></span>
+ </div>
+
+ <div>
+   <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
+   <span>&nbsp;&nbsp;</span>
+   <span title="start call"  class="emoji" onclick="callRoom()">🔛</span>
+   <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
+ </div>
+</div>
+
+<div id="av"></div>
+<div id="data"></div>
+
+</body>
+
+<script>
+
+var peer = new Peer(
+  {key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true,
+   config: {'iceServers': [
+            { url: 'turn:myserver.example.com:3478?transport=udp', username: 'mozbot1', credential: 'mozbot1' },
+            { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'mozbot1', credential: 'mozbot1' }
+          ]}
+  }
+
+);
+
+var room_id = window.location.hash.substr(1);
+if( room_id == ""){
+  console.error("no room_id chosen, so no connection will be possible. Use #name.");
+}
+
+function setStatus(text){
+   document.getElementById("status").textContent = "["+room_id+"] "+text;
+}
+
+function setNumPeers(){
+   let num_peers = 0;
+   for (let conns in peer.connections) {
+      if(peer.connections[conns].length  == 2){
+         num_peers = num_peers +1;
+      }
+   }
+   let participant = "participant"; // for plurals
+   if(num_peers > 1){ participant = "participants";}
+   document.getElementById("numpeers").textContent = num_peers+" other "+participant+" in the room";
+   if(num_peers == 0){
+      document.getElementById("numpeers").textContent = "you are the only one in the room!";
+   }
+}
+
+
+let local_stream = null;
+
+// mostly from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
+
+// when data connection is made
+peer.on('open', function (id) {
+   console.log('My peer ID is: ' + id);
+   setStatus("Data connection open to room, click 'on' to access audio");
+   document.querySelector("#myid").innerHTML = id;
+});
+
+
+peer.on('error', function(err) { 
+   console.log('Error',err);
+});
+
+// clean up if the page is blown away
+document.addEventListener("beforeunload", function(){
+     endCall();
+});
+
+function endCall(){
+   console.log("closing call with all peers");
+   handlePeerDisconnect(null, true); // lose all of them
+   setStatus("You have left the call");
+   document.getElementById("numpeers").textContent = "You have left the call";
+}
+
+
+// just make a data connection to the room
+// we don't need audio; it's just a coordination point
+
+async function callRoom() {
+  console.log("calling room",room_id);
+  let conn_zz  = peer.connect(room_id);
+
+  conn_zz.on('error', function(err) {
+     console.log("err",err);
+  });
+
+  conn_zz.on('data', function(data) {
+     console.log('got room data', data);
+     if(data.room_peers && data.room_peers.length > 1){
+        console.log("got room_peers",data.room_peers,"my peerid is",peer.id);
+
+        //call all the peers except myself
+        data.room_peers.forEach(function (room_peer) {
+          if(room_peer != peer.id){
+            console.log("calling user",room_peer);
+            callUser(room_peer);
+          }
+        })
+     }else{
+        setNumPeers();
+//("you are the only one in the room!");
+     }
+  });
+}
+
+
+// call a specific user
+async function callUser(the_peer_id) {
+
+  console.log("[callUser] Calling",the_peer_id);
+
+  
+  let peerId = the_peer_id;
+
+  // connect to data, needed for communication
+  // this is the specific connection to this user / eer
+  let conn  = peer.connect(peerId);
+  conn.on('disconnected', function() {
+     console.log('disconnected');
+     handlePeerDisconnect(conn.peer);
+  });
+  conn.on('close', function() {
+     console.log('closed remote dataaaa',conn);
+     handlePeerDisconnect(conn.peer);
+  });
+
+  // get the id entered by the user
+  setStatus("Getting your user media, audio only");
+
+  getLocalStream()
+  .then(function(){
+    console.log("[callUser] stream (muted)",local_stream.getTracks());
+
+    var options = {
+            offerToReceiveAudio: 1,
+            offerToReceiveVideo: 0
+    };
+
+    let call = peer.call(peerId, local_stream, options);
+    setStatus("Calling "+peerId+". My stream is muted");
+
+    call.on("stream", (remoteStream) => {
+    try{
+      setStatus("Got remote audio");
+
+      let the_id = call.peer;
+
+      // when we receive the remote stream, play it
+      // we expect audio only
+      createAudioDiv(remoteStream, call.peer);
+      console.log("[callUser] current pc[1]",peer.connections); 
+      setNumPeers();
+     }catch(e){
+       console.error("Creating audio div failed",e);
+     }
+    });
+    call.on("error", (err) => {
+      setStatus("Error "+err);
+      console.log("[callUser] ERROR",err);
+    });
+    call.on('close', (e) => {
+      console.log("[callUser] closed",e);
+    })
+  });
+}
+
+
+
+async function getLocalStream(){
+
+  //get our mic only
+  if(!local_stream){
+    local_stream = await navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: true
+    });
+    //pre-emptively mute my stream???
+    local_stream.getTracks()[0].enabled = false;
+  }
+
+}
+
+// this is when we get a call. We always accept.
+
+peer.on("call", (call) => {
+
+    console.log("[accepting call]",call.peer);
+
+    setStatus("[accepting call] getting user media, audio only");
+
+    getLocalStream()
+    .then(function(){
+      console.log("[accepting call] stream (muted)",local_stream.getTracks());
+
+      call.answer(local_stream);
+      call.on('disconnected', function() {
+        console.log('disconnected');
+        handlePeerDisconnect(call.peer);
+      });
+      call.on('close', function() {
+        console.log('closed call for',call.peer);
+        handlePeerDisconnect(call.peer);
+      });
+      call.on("stream", (remoteStream) => {
+        try{
+          setStatus("Got remote audio");
+
+          // when we receive the remote stream audio, play it
+          let the_id = call.peer;
+
+          // when we receive the remote stream, play it
+          // we expect audio only
+          createAudioDiv(remoteStream, call.peer)
+          console.log("[accepting call] current pc[1]",peer.connections);
+          setNumPeers();
+
+         }catch(e){
+           console.error("[accepting call] creating div failed",e);
+         }
+      });
+      call.on("error", (err) => {
+        setStatus("Error "+err);
+        console.log("[accepting call] ERROR",err);
+      });
+      call.on('close', () => {
+        setStatus("Ended call");
+      });
+   });
+});
+
+
+function createAudioDiv(remoteStream, call_peer){
+
+  // when we receive the remote stream, play it
+  // we expect audio only
+  const div = document.createElement('div');
+  const audio = document.createElement('audio');
+  audio.controls = 'true';
+  audio.autoplay = 'true';
+  audio.setAttribute("playsinline",'true'); // for ios
+  div.id = "id_"+call_peer; // id _ is because call_peer can start with a number
+  audio.controls = 'true';
+  audio.srcObject = remoteStream;
+  div.appendChild(audio);
+  const p = document.createElement('p');
+  p.innerHTML = call_peer;
+  div.appendChild(p);
+  document.getElementById("av").appendChild(div);
+  audio.play();
+}
+
+//mute / unmute my mic
+document.querySelector('#mute').onclick = function() {
+  if(this.classList.contains("off")){
+     this.classList.remove("off");
+     setStatus("Unmuting myself");
+     console.log("unmuting!");
+     local_stream.getTracks()[0].enabled = true;
+  }else{
+     this.classList.add("off");
+     setStatus("Muting myself");
+     console.log("muting!");
+     local_stream.getTracks()[0].enabled = false;
+  }
+};
+
+
+
+// clean up the divs and our list of peers
+
+function handlePeerDisconnect(peerId, all) {
+  console.log("handlePeerDisconnect for",peerId,all);
+  // manually close the peer connections
+  for (let conns in peer.connections) {
+    peer.connections[conns].forEach((conn2, index, array) => {
+      console.log("conn",conn2);
+      let remoteElement = document.querySelector("#id_"+conn2.peer);
+      console.log("peerid",peerId,"comparing remote id ",remoteElement,"and",conn2.peer == peerId,conn2.peer,"all",all);
+      if(conn2.peer == peerId || all == true){ //only remove the selected one
+        if(remoteElement){
+          remoteElement.parentNode.removeChild(remoteElement);
+        }
+        conn2.close();
+        let disconnected_peerid = conn2.peer;
+        console.log("removing",conn2.peer);
+        delete peer.connections.disconnected_peerid; // else they build up
+        setNumPeers();
+      }else{
+        console.log("no match with selected peer, not closing");
+      }
+    });
+  }
+
+}
+
+
+
+</script>
+</html>
+
+

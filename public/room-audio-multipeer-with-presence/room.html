@@ -1,0 +1,180 @@
+<html>
+<script src="../peerjs.js"></script>
+
+<body>
+<div id="menu">
+  <p>Your ID:</p>
+  <p id="uuid"></p>
+  <p>Status</p>
+  <p id="status"></p>
+  <input type="text" id="command" value="hello" />
+  <button onclick="sendData()">Send data</button>
+  <button onclick="disconnect()">disconnect</button>
+</div>
+
+<div id="av"></div>
+<div id="data"></div>
+
+</body>
+
+<script>
+
+var myname = window.location.hash.substr(1);
+if( myname == ""){
+  console.error("no name chosen, so random name picked. Use #name.");
+}
+
+let conn_index = null;
+
+var peer = new Peer(
+ [myname],
+ {key: 'peerjs', host: 'myserver.example.com', path: "/", debug:3, port: 443, secure: true,
+   config: {'iceServers': [
+     { url: 'turn:myserver.example.com:3478?transport=udp', username: 'mozbot1', credential: 'mozbot1' },
+     { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'mozbot1', credential: 'mozbot1'}
+   ]}
+ }
+);
+
+
+let current_peers = [];
+
+
+function listCurrentPeers(){
+   current_peers = [];
+   console.log("listcurrentpeers]",peer.connections);
+   Object.keys(peer.connections).forEach(function (key) {
+       var value = peer.connections[key];
+       console.log("value",value);
+       if(value.length > 0 && (!current_peers.includes(key) && key !="index")){  //exclude index
+         current_peers.push(key);
+       }
+   })
+}
+
+peer.on('connection', function(conn) { 
+   console.log("connection", peer.socket._socket);
+   console.log("connection", peer.id);
+
+   console.log("peer.connections",peer.connections);
+
+   //conn has to be open before sending data
+   conn.on('open', function() {
+     // send to this peer the list of all peers
+     listCurrentPeers();
+     console.log("[onopen] current_peers",current_peers);
+     conn.send({"room_peers": current_peers});
+   });
+
+   // tidy up
+   conn.on('disconnected', function() {
+     console.log('disconnected',conn.peer,"from",peer.connections);
+     let disconnected_peerid = conn.peer;
+     delete peer.connections.disconnected_peerid; 
+     console.log("peer connections now",peer.connections);
+   });
+
+   conn.on('close', function() {
+     let disconnected_peerid = conn.peer;
+     delete peer.connections.disconnected_peerid; 
+     console.log('closed remote data',conn,conn.peer);
+   });
+});
+
+
+const disconnect = () => {
+  console.log("manually disconnecting");
+  peer.disconnect();
+}
+
+
+//from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
+
+peer.on("open", function (id) {
+   console.log('My peer ID is: ' + id,peer.socket._socket);
+   console.log("peerids",peer.connections);
+   document.getElementById("uuid").textContent = id;
+   document.getElementById("status").textContent = "connected";
+
+   // send a ping message to the index page, which is hard-coded
+   // it's really helpful to know which rooms are available
+
+   conn_index  = peer.connect("index");
+   conn_index.on('open', function() {
+
+       // all ours should be data connections but just in case, we filter for data
+
+       if(conn_index.type =="data"){
+          console.log("sending to ",conn_index,"type is",conn_index.type);
+          conn_index.send({"ping":peer.id});
+       }
+       schedulePing();
+   });
+   conn_index.on('close',function() {
+     console.log("conn_index closed, reconnecting");
+     conn_index  = peer.connect("index");
+   });
+   conn_index.on('error',function(err) {
+     console.log("conn_index error",err);     
+   });
+});
+
+peer.on("disconnected", function (id) {
+   console.log("disconnected peer",id);
+   document.getElementById("status").textContent = "disconnected";
+   //try reconnecting? shoudl be a wait in here or backing off
+});
+
+
+//ping
+//schedule a heartbeat so we can tell which rooms are available
+
+const pingInterval = 10000;
+
+schedulePing = function () {
+    let wsPingTimer = setTimeout(function () {
+      sendPing(conn_index);
+    }, pingInterval);
+};
+
+
+sendPing = function () {
+
+  if(conn_index){
+    console.log("sending ping!",peer.connections);
+    listCurrentPeers();
+    console.log("[ping] current_peers",current_peers);
+    conn_index.send({"ping":peer.id,"size":current_peers.length});
+    schedulePing();
+  }else{
+    console.log("conn_index doesn't exist");
+  }
+};
+
+//end ping
+
+
+// send to all peers
+// just useful for testing, not used elsewhere
+
+const sendData = (command) => {
+   let html_command = command;
+
+   if(!command || command==""){
+     html_command = document.querySelector("#command").value;
+   }
+   console.log("sending command",html_command,"to peer.connections",peer.connections);
+
+   //send to all peers
+   for (let conns in peer.connections) {
+     peer.connections[conns].forEach((conn_zz) => {
+       if(conn_zz.type =="data"){//bit weird this
+          console.log("sending to ",conn_zz,"type is",conn_zz.type);
+          conn_zz.send(html_command);
+       }
+    });
+  }
+}
+
+</script>
+</html>
