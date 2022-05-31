@@ -69,4 +69,55 @@ I only really found 2, both with asymmetric - video one way and audio the other
 
 # multiplayer
 
-It appears that peerjs can do more than 2 peers, but not tested this fully.
+Peer.js can do multiple peers, but you need to make pair by pair calls for each. I think.
+
+There's an example in public/room-audio-multipeer-with-presence
+
+# stun / turn server
+
+You don't always need these but it's easy to install one:
+
+    sudo apt-get -y install coturn
+
+    sudo nano /etc/turnserver.conf
+
+contents
+
+    realm=coturn.myserver.example.com
+    fingerprint
+    listening-ip=0.0.0.0
+    external-ip=<EXTERNAL_IP>/<INTERNAL_IP> #or just the external ip
+    listening-port=3478
+    min-port=10000
+    max-port=20000
+    log-file=/var/log/turnserver.log
+    verbose
+    user=something:something
+    lt-cred-mech
+
+
+sudo nano /etc/default/coturn
+
+    TURNSERVER_ENABLED=1
+
+
+OPEN PORT tcp:3478 (and udp?)
+
+check:
+
+    netstat -pnltu | grep 3478
+
+and setup for peer.js is
+
+    var peer = new Peer(
+    {
+      key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true,
+      config: {'iceServers': [
+       { url: 'turn:myserver.example.com:3478?transport=udp', username: 'something', credential: 'something' },
+       { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'something', credential: 'something' }
+      ]}
+    });
+
+
+
+
