@@ -69,7 +69,7 @@ I only really found 2, both with asymmetric - video one way and audio the other
 
 # multiplayer
 
-Peer.js can do multiple peers, but you need to make pair by pair calls for each. I think.
+Peer.js can do multiple peers, but you need to make pair by pair calls for each. I think (reference: https://stackoverflow.com/questions/62743121/multi-party-video-conference-with-peerjs).
 
 There's an example in public/room-audio-multipeer-with-presence
 
