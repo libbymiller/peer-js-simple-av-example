@@ -9,6 +9,12 @@
   line-height: 1;
   cursor: pointer;
 }
+.notconnected{
+  opacity: 0.2;
+}
+.connected{
+  opacity: 1.0;
+}
 .off::after {
   content: '❌';
   position: absolute;
@@ -34,7 +40,7 @@
  </div>
 
  <div>
-   <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
+   <span title="mic muted" id="mute"  class="emoji microphone on notconnected">🎤</span>
    <span>&nbsp;&nbsp;</span>
    <span title="start call"  class="emoji" onclick="callRoom()">🔛</span>
    <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
@@ -168,7 +174,7 @@ async function callUser(the_peer_id) {
 
   getLocalStream()
   .then(function(){
-    console.log("[callUser] stream (muted)",local_stream.getTracks());
+    console.log("[callUser] stream",local_stream.getTracks());
 
     var options = {
             offerToReceiveAudio: 1,
@@ -176,7 +182,7 @@ async function callUser(the_peer_id) {
     };
 
     let call = peer.call(peerId, local_stream, options);
-    setStatus("Calling "+peerId+". My stream is muted");
+    setStatus("Calling "+peerId+". My stream is NOT muted");
 
     call.on("stream", (remoteStream) => {
     try{
@@ -209,12 +215,17 @@ async function getLocalStream(){
 
   //get our mic only
   if(!local_stream){
-    local_stream = await navigator.mediaDevices.getUserMedia({
+    let tmp_local_stream = await navigator.mediaDevices.getUserMedia({
       video: false,
       audio: true
+    }).then(function(stream){
+      local_stream = stream;
+      let m = document.querySelector('#mute');
+      m.classList.remove("notconnected");
+      m.classList.add("connected");
     });
     //pre-emptively mute my stream???
-    local_stream.getTracks()[0].enabled = false;
+    ////local_stream.getTracks()[0].enabled = false;
   }
 
 }
@@ -229,7 +240,7 @@ peer.on("call", (call) => {
 
     getLocalStream()
     .then(function(){
-      console.log("[accepting call] stream (muted)",local_stream.getTracks());
+      console.log("[accepting call] stream",local_stream.getTracks());
 
       call.answer(local_stream);
       call.on('disconnected', function() {
@@ -290,16 +301,23 @@ function createAudioDiv(remoteStream, call_peer){
 
 //mute / unmute my mic
 document.querySelector('#mute').onclick = function() {
-  if(this.classList.contains("off")){
-     this.classList.remove("off");
-     setStatus("Unmuting myself");
-     console.log("unmuting!");
-     local_stream.getTracks()[0].enabled = true;
+  console.log("click - mute?");
+  if(this.classList.contains("connected")){
+    if(this.classList.contains("off")){
+      this.classList.remove("off");
+      setStatus("Unmuting myself");
+      console.log("unmuting!",local_stream.getTracks()[0]);
+      local_stream.getTracks()[0].enabled = true;
+      console.log("unmuted!",local_stream.getTracks()[0]);
+    }else{
+      this.classList.add("off");
+      setStatus("Muting myself");
+      console.log("muting!",local_stream.getTracks()[0]);
+      local_stream.getTracks()[0].enabled = false;
+      console.log("muted!",local_stream.getTracks()[0]);
+    }
   }else{
-     this.classList.add("off");
-     setStatus("Muting myself");
-     console.log("muting!");
-     local_stream.getTracks()[0].enabled = false;
+     console.log("not conneced so can't mute");
   }
 };
 
