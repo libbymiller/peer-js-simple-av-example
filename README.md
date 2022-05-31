@@ -4,6 +4,7 @@ WIP -
 
  * peer js server + express
  * with apache ssl config
+ * various client side examples in /public
 
 # Apache SSL config
 
@@ -54,18 +55,12 @@ sudo node server.js
 
 and go to https://myserver.example.com/test.html
 
-# Paired bot and remote.html
-
-peer.js requires one party to make the call and for that it needs to know the other one's peerid. For my purposes I can hardcode one id (mozbot1) and have remote.html call it. You can test with two windows open one with bot.html one with remote.html.
-
-For the data examples you need to connect before sending a message. Only remote.html can initiate a call.
-
 # Weirdnesses
 
-I only really found 2, both with asymmetric - video one way and audio the other
+I only really found 1 eith asymmetric - video one way and audio the other
 
  * unless you put constraints in, you get only audio both ways (https://github.com/peers/peerjs/issues/147#issuecomment-647498880)
- * The video is duplicated for remote
+
 
 # multiplayer
 
@@ -117,7 +112,4 @@ and setup for peer.js is
        { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'something', credential: 'something' }
       ]}
     });
-
-
-
 
